@@ -1,0 +1,5 @@
+data/
+output/*.db
+.env
+.venv/
+__pycache__/
