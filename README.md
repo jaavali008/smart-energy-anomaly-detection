@@ -34,3 +34,13 @@ Neo4j is optional. Set `RUN_NEO4J = True` in `main.py` and enter your own creden
 ## Notes
 - Anomalies mean unusual usage, not confirmed faults (no labelled data).
 - The CO2 factor (0.82 kg/kWh) and tariff (Rs 7/kWh) are assumptions and can be changed.
+
+## Screenshots
+
+### Dashboard
+![Dashboard overview](screenshots/dashboard1.png)
+![Forecast and wasted energy](screenshots/dashboard2.png)
+
+### Neo4j graph
+![Neo4j graph](screenshots/neo4j_graph.png)
+![Neo4j simple understanding graph](screenshots/visualisation.png)

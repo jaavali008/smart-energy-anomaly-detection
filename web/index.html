@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Energy Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<style>
+:root{--bg:#0a0e1f;--card:#131a33;--line:#243056;--tx:#e8ecff;--mu:#8e9bc8;--a:#22d3ee;--b:#8b5cf6;--r:#f43f5e;--g:#34d399}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Inter,Arial,sans-serif;background:radial-gradient(1200px 600px at 10% -10%,#1b2450,transparent),var(--bg);color:var(--tx)}
+header{padding:22px 28px 6px}h1{margin:0;font-size:26px;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;color:transparent}
+header p{margin:4px 0 0;color:var(--mu);font-size:14px}
+.bar{display:flex;flex-wrap:wrap;gap:14px;align-items:end;padding:14px 28px;margin:10px 28px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+label{font-size:12px;color:var(--mu);display:flex;flex-direction:column;gap:5px}
+input,select{background:#0c1228;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:8px 10px;font-size:14px;width:110px}
+.chip{cursor:pointer;border:1px solid var(--line);background:#0c1228;color:var(--mu);padding:8px 12px;border-radius:20px;font-size:13px}
+.chip.on{color:#fff;border-color:transparent;background:linear-gradient(90deg,var(--b),var(--a))}
+main{padding:0 28px 30px;display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+.card h3{margin:0 0 10px;font-size:14px;color:var(--mu);font-weight:600;letter-spacing:.3px}
+.kpi{grid-column:span 3;position:relative;overflow:hidden}.kpi:before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--a),var(--b))}
+.kpi b{display:block;font-size:30px;margin-top:4px}.kpi small{color:var(--mu)}
+.c8{grid-column:span 8}.c4{grid-column:span 4}.c6{grid-column:span 6}.c12{grid-column:span 12}
+canvas{max-height:300px}
+.heat{display:grid;grid-template-columns:34px repeat(24,1fr);gap:2px;font-size:10px;color:var(--mu)}
+.heat div{height:24px;border-radius:3px;text-align:center;line-height:24px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{color:var(--mu);text-align:left;font-weight:600}td,th{padding:7px 6px;border-bottom:1px solid var(--line)}
+.tag{padding:2px 9px;border-radius:12px;font-size:12px}.High{background:#f43f5e33;color:#fda4af}.Medium{background:#f59e0b33;color:#fcd34d}.Low{background:#22d3ee33;color:#67e8f9}
+.res{margin-top:12px;padding:12px;border-radius:10px;background:#0c1228;border:1px solid var(--line);font-size:14px;min-height:48px}
+input[type=range]{width:100%;padding:0}.big{font-size:22px;color:var(--g);font-weight:700}
+ul{margin:0;padding-left:18px;color:var(--mu);line-height:1.7;font-size:14px}
+@media(max-width:900px){.kpi{grid-column:span 6}.c8,.c4,.c6{grid-column:span 12}}
+</style></head><body>
+<header><h1>Smart Energy Consumption Analytics &amp; Anomaly Detection</h1>
+<p>UCI household dataset · 2006-2010 · Isolation Forest + Random Forest · change the inputs below, everything updates live</p></header>
+
+<div class="bar">
+<label>Year<select id="yr"></select></label>
+<label>Source<select id="src"></select></label>
+<label>Tariff (Rs/kWh)<input id="tar" type="number" value="7" step="0.5" min="0"></label>
+<label>CO₂ (kg/kWh)<input id="co2" type="number" value="0.82" step="0.01" min="0"></label>
+<label>Severity<span style="display:flex;gap:6px"><span class="chip on" data-s="Low">Low</span><span class="chip on" data-s="Medium">Medium</span><span class="chip on" data-s="High">High</span></span></label>
+</div>
+
+<main>
+<div class="card kpi"><small>Total consumption</small><b id="k1">0</b><small>kWh</small></div>
+<div class="card kpi"><small>Anomalies detected</small><b id="k2">0</b><small id="k2s"></small></div>
+<div class="card kpi"><small>Wasted energy · cost</small><b id="k3">0</b><small id="k3s"></small></div>
+<div class="card kpi"><small>CO₂ avoidable</small><b id="k4">0</b><small>kg</small></div>
+
+<div class="card c8"><h3>DAILY POWER WITH ANOMALIES (kW)</h3><canvas id="ch1"></canvas></div>
+<div class="card c4"><h3>WASTED ENERGY BY SOURCE</h3><canvas id="ch2"></canvas></div>
+
+<div class="card c8"><h3>AVERAGE POWER: DAY × HOUR (kW)</h3><div class="heat" id="heat"></div></div>
+<div class="card c4"><h3>AVERAGE POWER BY HOUR</h3><canvas id="ch3"></canvas></div>
+
+<div class="card c8"><h3>FORECAST VS ACTUAL · LAST 7 DAYS · <span id="mae"></span></h3><canvas id="ch4"></canvas></div>
+<div class="card c4"><h3>IS THIS READING NORMAL?</h3>
+<div style="display:flex;gap:10px"><label>Hour (0-23)<input id="ch" type="number" value="3" min="0" max="23"></label><label>Power (kW)<input id="cp" type="number" value="3.5" step="0.1" min="0"></label></div>
+<div class="res" id="cres"></div></div>
+
+<div class="card c6"><h3>WHAT IF WE AVOID THE SPIKES?</h3>
+<label style="width:100%"><span>Reduce flagged excess by <b id="pv" style="display:inline;color:var(--tx)">50</b>%</span><input id="pc" type="range" min="0" max="100" value="50"></label>
+<div class="res"><span class="big" id="w1"></span><br><span id="w2" style="color:var(--mu)"></span></div>
+<h3 style="margin-top:14px">SAVING TIPS</h3><ul id="tips"></ul></div>
+<div class="card c6"><h3>TOP ALERTS (BY EXCESS kWh)</h3><table><thead><tr><th>Time</th><th>kW</th><th>Source</th><th>Severity</th><th>Excess</th></tr></thead><tbody id="tb"></tbody></table></div>
+</main>
+
+<script>
+const D=window.DATA,$=id=>document.getElementById(id),fmt=n=>Math.round(n).toLocaleString('en-IN');
+const S={sev:new Set(['Low','Medium','High'])};
+const years=[...new Set(D.dates.map(d=>d.slice(0,4)))],srcs=[...new Set(D.anomalies.map(a=>a.src))];
+$('yr').innerHTML='<option value="all">All years</option>'+years.map(y=>`<option>${y}</option>`).join('');
+$('src').innerHTML='<option value="all">All sources</option>'+srcs.map(s=>`<option>${s}</option>`).join('');
+const dayIdx={};D.dates.forEach((d,i)=>dayIdx[d]=i);
+const COL=['#22d3ee','#8b5cf6','#f43f5e','#34d399'];
+Chart.defaults.color='#8e9bc8';Chart.defaults.borderColor='#243056';
+const mk=(id,cfg)=>new Chart($(id),cfg);
+const trend=mk('ch1',{type:'scatter',data:{datasets:[
+ {label:'Daily mean',data:[],showLine:true,borderColor:'#22d3ee',borderWidth:1.2,pointRadius:0},
+ {label:'Anomaly',data:[],backgroundColor:'#f43f5e',pointRadius:3}]},
+ options:{animation:false,scales:{x:{type:'linear',ticks:{maxTicksLimit:8,callback:v=>D.dates[Math.round(v)]||''}}}}});
+const donut=mk('ch2',{type:'doughnut',data:{labels:[],datasets:[{data:[],backgroundColor:COL,borderWidth:0}]},options:{cutout:'62%'}});
+mk('ch3',{type:'bar',data:{labels:[...Array(24).keys()],datasets:[{data:D.hour_mean,backgroundColor:'#8b5cf6',borderRadius:4}]},options:{plugins:{legend:{display:false}}}});
+mk('ch4',{type:'line',data:{labels:D.fc_labels,datasets:[
+ {label:'Actual',data:D.fc_actual,borderColor:'#fb923c',borderWidth:1.5,pointRadius:0},
+ {label:'Forecast',data:D.fc_pred,borderColor:'#22d3ee',borderWidth:1.5,pointRadius:0}]},options:{scales:{x:{ticks:{maxTicksLimit:7}}}}});
+$('mae').textContent=`MAE ${D.mae_rf} kW vs baseline ${D.mae_base} kW (${Math.round((1-D.mae_rf/D.mae_base)*100)}% better)`;
+
+// heatmap
+const mx=Math.max(...D.heat.flat()),mn=Math.min(...D.heat.flat());
+let hh='<div></div>'+[...Array(24).keys()].map(i=>`<div style="height:auto">${i%3?'':i}</div>`).join('');
+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach((d,r)=>{hh+=`<div style="text-align:left">${d}</div>`;
+ D.heat[r].forEach((v,c)=>{const t=(v-mn)/(mx-mn);hh+=`<div title="${d} ${c}:00 · ${v} kW" style="background:hsl(${275+t*85},85%,${18+t*42}%)"></div>`})});
+$('heat').innerHTML=hh;
+
+function count(el,to,dec=0){const f=parseFloat(el.dataset.v||0);el.dataset.v=to;const t0=performance.now();
+ (function s(t){const k=Math.min(1,(t-t0)/500);el.textContent=(f+(to-f)*k).toLocaleString('en-IN',{maximumFractionDigits:dec});if(k<1)requestAnimationFrame(s)})(t0)}
+
+function render(){
+ const yr=$('yr').value,src=$('src').value,tar=+$('tar').value,co=+$('co2').value;
+ const days=D.dates.map((d,i)=>i).filter(i=>yr=='all'||D.dates[i].startsWith(yr));
+ const an=D.anomalies.filter(a=>S.sev.has(a.sev)&&(src=='all'||a.src==src)&&(yr=='all'||a.t.startsWith(yr)));
+ const kwh=days.reduce((s,i)=>s+D.daily_kwh[i],0),ex=an.reduce((s,a)=>s+a.ex,0);
+ count($('k1'),kwh);count($('k2'),an.length);count($('k3'),ex);count($('k4'),ex*co);
+ $('k2s').textContent=`${D.n_both} agreed by Isolation Forest + Z-score (all years)`;
+ $('k3s').textContent=`≈ Rs ${fmt(ex*tar)}`;
+ trend.data.datasets[0].data=days.map(i=>({x:i,y:D.daily_mean[i]}));
+ trend.data.datasets[1].data=an.filter(a=>dayIdx[a.t.slice(0,10)]!==undefined).map(a=>({x:dayIdx[a.t.slice(0,10)]+ +a.t.slice(11,13)/24,y:a.kw}));
+ trend.options.scales.x.min=days[0];trend.options.scales.x.max=days[days.length-1];trend.update();
+ const bs={};an.forEach(a=>bs[a.src]=(bs[a.src]||0)+a.ex);
+ donut.data.labels=Object.keys(bs);donut.data.datasets[0].data=Object.values(bs).map(v=>+v.toFixed(1));donut.update();
+ $('tb').innerHTML=[...an].sort((a,b)=>b.ex-a.ex).slice(0,8).map(a=>`<tr><td>${a.t}</td><td>${a.kw}</td><td>${a.src}</td><td><span class="tag ${a.sev}">${a.sev}</span></td><td>${a.ex.toFixed(2)} kWh</td></tr>`).join('')||'<tr><td colspan=5>No alerts for this filter</td></tr>';
+ const p=+$('pc').value/100;$('pv').textContent=Math.round(p*100);
+ $('w1').textContent=`${fmt(ex*p)} kWh · Rs ${fmt(ex*p*tar)}`;
+ $('w2').textContent=`${fmt(ex*p*co)} kg CO₂ ≈ ${fmt(ex*p*co/21)} trees' yearly absorption`;
+ const pk=D.hour_mean.indexOf(Math.max(...D.hour_mean)),top=Object.entries(bs).sort((a,b)=>b[1]-a[1])[0];
+ $('tips').innerHTML=`<li>Peak usage is around ${pk}:00. Shift heavy appliances to off-peak hours.</li><li>${top?`Top source: ${top[0]}. Check those appliances first.`:'No alerts for this filter.'}</li><li>Keep the flagged spikes off and save about ${fmt(ex)} kWh.</li>`;
+}
+function check(){const h=Math.min(23,Math.max(0,+$('ch').value||0)),p=+$('cp').value,z=(p-D.hour_mean[h])/D.hour_std[h];
+ const c=Math.abs(z)>3?['var(--r)','Anomaly']:Math.abs(z)>2?['#fbbf24','Unusual']:['var(--g)','Normal'];
+ $('cres').innerHTML=`<b style="color:${c[0]}">${c[1]}</b> · usual at ${h}:00 is ${D.hour_mean[h]} kW (z-score ${z.toFixed(1)})`}
+['yr','src','tar','co2','pc'].forEach(i=>$(i).addEventListener('input',render));
+['ch','cp'].forEach(i=>$(i).addEventListener('input',check));
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{const s=c.dataset.s;S.sev.has(s)?S.sev.delete(s):S.sev.add(s);c.classList.toggle('on');render()});
+render();check();
+</script></body></html>

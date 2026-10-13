@@ -1,4 +1,5 @@
 # %% 1. Load data (Unit I)
+from src.export_data import export_web
 from getpass import getpass
 from src.data_loader import DataLoader
 from src.preprocessor import Preprocessor
@@ -32,7 +33,7 @@ alert_df = am.build(h)
 am.save_sqlite()
 
 # %% 6. Neo4j (Unit IV), optional
-RUN_NEO4J = False      # set True only when you want Neo4j
+RUN_NEO4J = False      # set True only when you want Neo4j     # set True only when you want Neo4j
 if RUN_NEO4J:
     uri = input("NEO4J_URI: ").strip()
     user = input("NEO4J_USERNAME: ").strip()
@@ -47,4 +48,6 @@ dash = Dashboard(h, alert_df, fc.y_test, fc.pred)
 dash.kpis()
 fig = dash.build()
 fig.show()
-# %%
+
+# %% 8. Export data for the JavaScript dashboard
+export_web(h, alert_df, fc)      # creates web/data.js
